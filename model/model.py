@@ -4,143 +4,169 @@ from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
 from keras.models import load_model, Sequential
 import scipy as sc
-import scipy.stats
+from scipy.signal import butter, lfilter, filtfilt, sosfiltfilt
 
 
 class EMGModel:
     def __init__(self, model_path):
         self.model = load_model(model_path)
         # self.model = Sequential(self.model.layers)
+    
+    def overlap(self, X, window_size, window_step):
+        """
+        Create an overlapped version of X
+        Parameters
+        ----------
+        X : ndarray, shape=(n_samples,)
+            Input signal to window and overlap
+        window_size : int
+            Size of windows to take
+        window_step : int
+            Step size between windows
+        Returns
+        -------
+        X_strided : shape=(n_windows, window_size)
+            2D array of overlapped X
+        """
+        if window_size % 2 != 0:
+            raise ValueError("Window size must be even!")
+        # Make sure there are an even number of windows before stridetricks
+        append = np.zeros((window_size - len(X) % window_size))
+        X = np.hstack((X, append))
 
-    def prep(self, input_data, rec):
-        # Rectification the EMG data
-        if(rec==True):
-            input = abs(input_data)
+        ws = window_size
+        ss = window_step
+        a = X
+
+        valid = len(a) - ws
+        nw = int((valid) // ss)
+        # print(nw, ws)
+        out = np.ndarray((nw, ws), dtype=a.dtype)
+
+        for i in np.arange(nw):
+            # "slide" the window along the samples
+            start = int(i * ss)
+            stop = int(start + ws)
+            out[i] = a[start:stop]
+
+        return out
+
+
+    def stft(self, X, fftsize=128, step=65, mean_normalize=True, real=False, compute_onesided=True):
+        """
+        Compute STFT for 1D real valued input X
+        """
+        if real:
+            local_fft = np.fft.rfft
+            cut = -1
         else:
-            input = input_data
+            local_fft = np.fft.fft
+            cut = None
+        if compute_onesided:
+            cut = fftsize // 2
+        if mean_normalize:
+            X -= X.mean()
+        # print(X)
+        X = self.overlap(X, fftsize, step)
 
-        # sliding windows for 1s  --> 1 sec = 200 row
-        time = 200
-        nRow, nCol = input.shape
-        row = 0
-        windows = []
+        size = fftsize
+        win = 0.54 - 0.46 * np.cos(2 * np.pi * np.arange(size) / (size - 1))
+        X = X * win[None]
+        X = local_fft(X)[:, :cut]
+        return X
 
-        for row in range(nRow // time-1):
-            windows.append(input.iloc[row*time : (row+1)*time, 1:9])
-        
-        # pad or cut
-        time = 96
-        pad_windows = np.zeros((time, 200, 8))
-        if len(windows) < time:
-            for i in range(len(windows)):
-                pad_windows[i] = windows[i]
+    def pretty_spectrogram(self, d, log=True, thresh=5, fft_size=512, step_size=64):
+        """
+        creates a spectrogram
+        log: take the log of the spectrgram
+        thresh: threshold minimum power for log spectrogram
+        """
+        specgram = np.abs(
+            self.stft(d, fftsize=fft_size, step=step_size, real=False, compute_onesided=True)
+        )
+
+        if log == True:
+            specgram /= specgram.max()  # volume normalize to max 1
+            specgram = np.log10(specgram)  # take log
+            specgram[
+                specgram < -thresh
+            ] = -thresh  # set anything less than the threshold as the threshold
+
+            specgram[np.isnan(specgram)] = -thresh
         else:
-            for i in range(len(pad_windows)):
-                pad_windows[len(pad_windows)-(i+1)] = windows[len(windows)-(i+1)]
+            specgram[
+                specgram < thresh
+            ] = thresh  # set anything less than the threshold as the threshold
 
-        # Extract the feature
-        windows = np.array(pad_windows)
-        time, feat, channels = windows.shape
+        return specgram
 
-        final_windows_feature = []
-        for window in windows:
-            windows_feature = []
-            for ch in range(channels):
-                window_feature = []
-                data = window[:,ch]
+    def prep(self, input_data):
+        signal = np.array(input_data)
 
-                # Mean and Standard deviation of the wave
-                window_feature.append(data.mean())
-                window_feature.append(data.std())
-                # print(f'Mean: {data.mean()}, STD: {data.std()}')
-
-                # Skewness and Kurtosis
-                # window_feature.append(window[ch].skew())
-                window_feature.append(sc.stats.skew(data))
-                window_feature.append(sc.stats.kurtosis(data))
-                # print(f'Skew: {sc.stats.skew(data)}, Kurtosis: {sc.stats.kurtosis(data)}')
-
-                # Maximum and minimum values
-                window_feature.append(data.max())
-                window_feature.append(data.min())
-                # print(f'Max: {data.max()}, Min: {data.min()}')
-
-                # Sample variances of each wave, plus the sample covariances of all pairs of the waves
-                cov = np.cov(data, bias=False)
-                window_feature.append(data.var())
-                window_feature.append(cov)
-                # print(f'Variance: {data.var()}, Covariance: {cov}')
-
-                # The eigenvalues of the covariance matrix
-                # e_val, e_vec = np.linalg.eig(cov)
-                # window_feature.append(e_val)
-                # print(f'Eigenvalues: {e_val}')
-
-                # The upper triangular elements of the matrix logarithm of the covariance matrix
-                # window_feature.append(np.triu(cov))
-                # print(f'Upper triangular: {np.triu(cov)}')
-                
-                # The magnitude of frequency components of each signal, obtained using a Fast Fourier Transform (FFT)
-                fft_ch = np.fft.rfft(data)
-                magnitude = np.abs(fft_ch)
-                window_feature += list(np.concatenate([window_feature, magnitude]))
-                # print(f'FFT: {list(np.concatenate([window_feature, magnitude]))}')
-
-                windows_feature.append(window_feature)
-            final_windows_feature.append(np.array(windows_feature).transpose())
-
-        # print(f'Feature size: {np.shape(final_windows_feature)}')
-
-        # Normalize the data
-        X = np.array(final_windows_feature)
-        X = X.reshape((X.shape[0], X.shape[1]*X.shape[2]))
-        # print(f'X: {X.shape}')
-
-        if(rec==True):
-            scaler = MinMaxScaler(feature_range=(0, 1))
+        # Pad or Cut
+        data = np.zeros((200, 8))
+        if signal.shape[0] > 200:
+            data[:200, :] = signal[:200, :]
         else:
-            scaler = MinMaxScaler(feature_range=(-1, 1))
-        
-        X_scaler = scaler.fit_transform(X.reshape(X.shape[0], -1)).reshape(X.shape)
-        X_scaler = np.expand_dims(X_scaler, axis=0)
+            data[:signal.shape[0], :] = signal
 
-        # print(f'Feature shape: {X_scaler.shape}')
+        # Filter Signal Using High-pass Filter
+        signal_filter = np.zeros((200, 8))
+        sampling_freq  = 200             # Nyquist theorem (the sampling rate should be at least twice the highest frequency component in the signal)
+        filter_order = 4
+        for ch in range(8):
+            cutoff_freq  = (sampling_freq*0.5)*0.2
+            coefficients = cutoff_freq/(sampling_freq*0.5)              # filter coefficients
+            b, a = sc.signal.butter(filter_order, coefficients, btype='highpass')
+            filter = filtfilt(b, a, data[:, ch])  
+            signal_filter[:, ch] = filter
 
-        return X_scaler
+        # Extract Feature
+        feature = np.zeros((1, 16, 112))
+        fft_size = 32
+        step_size = fft_size - (0.6 * fft_size) # window size - (20% of window size)
+        thresh = 4
+
+        for i in range(1):
+            wav_spectrogram_1 = self.pretty_spectrogram(signal_filter[:, 0], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_2 = self.pretty_spectrogram(signal_filter[:, 1], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_3 = self.pretty_spectrogram(signal_filter[:, 2], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_4 = self.pretty_spectrogram(signal_filter[:, 3], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_5 = self.pretty_spectrogram(signal_filter[:, 4], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_6 = self.pretty_spectrogram(signal_filter[:, 5], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_7 = self.pretty_spectrogram(signal_filter[:, 6], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            wav_spectrogram_8 = self.pretty_spectrogram(signal_filter[:, 7], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
+            
+            feature[i, :, :] = np.hstack((np.transpose(wav_spectrogram_1), np.transpose(wav_spectrogram_2), np.transpose(wav_spectrogram_3), np.transpose(wav_spectrogram_4), np.transpose(wav_spectrogram_5), np.transpose(wav_spectrogram_6), np.transpose(wav_spectrogram_7), np.transpose(wav_spectrogram_8)))
+
+        # print(f'File name: {gesture} No: {test_data} Shape: {data.shape} Filter: {signal_filter.shape} Feature: {feature.shape}')
+        # Normalize EMG dataset
+        X = (feature-feature.min())/(feature.max()-feature.min())
+
+        return X
 
     def predict(self, input_data):
         # input_data = tf.convert_to_tensor(input_data, dtype=tf.float32)
         output = self.model.predict(input_data)
         
         return output
+    
+    def main(self, signal):
+        model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5'
+        self.model = load_model(model_path)
+        prep_data = self.prep(signal)
+        output = self.predict(prep_data)
+
+        return output
 
 if __name__ == '__main__':
-    print(tf.__version__)
-    model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\model_lstm.h5'
+    model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5'
     # model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\model_lstm_rec.h5'
     # model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\model_cnn_rec.h5'
     model = EMGModel(model_path)
     # model = load_model(model_path)
     input_data = pd.read_csv('D:\\4_KULIAH_S2\Semester 4\myo-project\data\me-fist-1.csv')
-    prep_data = model.prep(input_data, rec=False)
-    output = model.predict(prep_data)
-    print(output)
-
-
-    input_data = pd.read_csv('D:\\4_KULIAH_S2\Semester 4\myo-project\data\me-open-1.csv')
-    prep_data = model.prep(input_data, rec=False)
-    output = model.predict(prep_data)
-    print(output)
-
-
-    input_data = pd.read_csv('D:\\4_KULIAH_S2\Semester 4\myo-project\data\me-wavein-1.csv')
-    prep_data = model.prep(input_data, rec=False)
-    output = model.predict(prep_data)
-    print(output)
-
-
-    input_data = pd.read_csv('D:\\4_KULIAH_S2\Semester 4\myo-project\data\me-waveout-1.csv')
-    prep_data = model.prep(input_data, rec=False)
+    prep_data = model.prep(input_data)
     output = model.predict(prep_data)
     print(output)
 
