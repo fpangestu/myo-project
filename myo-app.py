@@ -109,7 +109,7 @@ class View(GridLayout):
         self.fig_gyro = Figure()
         self.ax_gyro = self.fig_gyro.add_subplot(1, 1, 1)
         self.ax_gyro.tick_params(axis='both', which='major', labelsize=7)
-        self.ax_gyro.set_xlim(0, 80)
+        self.ax_gyro.set_xlim(0, 120)
         self.ax_gyro.set_ylim(-120, 120)
         for line_y in [-50, 0, 50]:
             self.ax_gyro.axhline(line_y, color='gray', linestyle='--', alpha=0.5)
@@ -117,7 +117,7 @@ class View(GridLayout):
         self.fig_acc = Figure()
         self.ax_acc = self.fig_acc.add_subplot(1, 1, 1)
         self.ax_acc.tick_params(axis='both', which='major', labelsize=7)
-        self.ax_acc.set_xlim(0, 80)
+        self.ax_acc.set_xlim(0, 120)
         self.ax_acc.set_ylim(-5, 5)
         for line_y in [-3, 0, 3]:
             self.ax_acc.axhline(line_y, color='gray', linestyle='--', alpha=0.5)
@@ -125,7 +125,7 @@ class View(GridLayout):
         self.fig_ori = Figure()
         self.ax_ori = self.fig_ori.add_subplot(1, 1, 1)
         self.ax_ori.tick_params(axis='both', which='major', labelsize=7)
-        self.ax_ori.set_xlim(0, 80)
+        self.ax_ori.set_xlim(0, 120)
         self.ax_ori.set_ylim(-1.2, 1)
         for line_y in [-0.5, 0, 0.5]:
             self.ax_ori.axhline(line_y, color='gray', linestyle='--', alpha=0.5)
@@ -163,7 +163,7 @@ class View(GridLayout):
         self.y8 = np.zeros((len(self.x8)))
         self.line8, = self.ax8.plot(self.x8, self.y8)
 
-        self.x_gyro = np.arange(80)
+        self.x_gyro = np.arange(120)
         self.y_gyro_1 = np.zeros((len(self.x_gyro)))
         self.y_gyro_2 = np.zeros((len(self.x_gyro)))
         self.y_gyro_3 = np.zeros((len(self.x_gyro)))
@@ -173,7 +173,7 @@ class View(GridLayout):
         self.ax_gyro.legend(handles=[self.line_gyro_1, self.line_gyro_2, self.line_gyro_3],
                     labels=['X', 'Y', 'Z'], loc='right', fontsize=7)
 
-        self.x_acc = np.arange(80)
+        self.x_acc = np.arange(120)
         self.y_acc_1 = np.zeros((len(self.x_acc)))
         self.y_acc_2 = np.zeros((len(self.x_acc)))
         self.y_acc_3 = np.zeros((len(self.x_acc)))
@@ -183,7 +183,7 @@ class View(GridLayout):
         self.ax_acc.legend(handles=[self.line_acc_1, self.line_acc_2, self.line_acc_3],
                     labels=['X', 'Y', 'Z'], loc='right', fontsize=7)
 
-        self.x_ori = np.arange(80)
+        self.x_ori = np.arange(120)
         self.y_ori_1 = np.zeros((len(self.x_ori)))
         self.y_ori_2 = np.zeros((len(self.x_ori)))
         self.y_ori_3 = np.zeros((len(self.x_ori)))
@@ -229,7 +229,7 @@ class View(GridLayout):
         self.sensor_thread.start()
         
         # update the plot with the new data in the main thread
-        Clock.schedule_interval(self.update_plot, 0.1)
+        Clock.schedule_interval(self.update_plot, 0.05)
 
     def read_sensor(self):
         # read sensor data in a loop
@@ -239,30 +239,27 @@ class View(GridLayout):
         emg_ = []
         imu_ = []
         sec_ = []
-        if self.running == True:
-            while self.hub.run(self.listener, 5):
+
+        with self.hub.run_in_background(self.listener.on_event):
+            while True:
+                time.sleep(0.003)
                 emg, imu = self.listener.emg_data, self.listener.stream
                 self.my_queue1.put(emg)
-                self.my_queue2.put(imu)  
-
+                self.my_queue2.put(imu)
                 if self.record == True:
-                    if len(emg) != 0 and len(imu) != 0:
-                        sec_.append(sec)
-                        emg_.append(emg)
+                    sec_.append(sec)
+                    emg_.append(emg)
+                    if len(imu) != 0:
                         imu_.append(imu)
                         sec = sec + 0.005
-                    elif len(emg) != 0 and len(imu) == 0:
-                        sec_.append(sec)
-                        emg_.append(emg)
+                    else:
                         if len(imu_) == 0:
                             imu_.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
                         elif len(imu_) != 0:
                             imu_.append(imu_[-1])
                         sec = sec + 0.005
-                    else:
-                        pass
                 elif self.record == False and len(emg_) != 0:
-                    tm = np.vstack(sec_)
+                    tm = np.array(sec_)
                     emg = np.vstack(emg_)
                     imu = np.vstack(imu_)
                     print(np.shape(tm), np.shape(emg), np.shape(imu))
@@ -271,6 +268,35 @@ class View(GridLayout):
                     emg_ = []
                     imu_ = []
                     sec_ = []
+
+        # if self.running == True:
+        #     while self.hub.run(self.listener, 5):
+        #         emg, imu = self.listener.emg_data, self.listener.stream
+        #         self.my_queue1.put(emg)
+        #         self.my_queue2.put(imu)  
+
+        #         if self.record == True:
+        #             sec_.append(sec)
+        #             emg_.append(emg)
+        #             if len(imu) != 0:
+        #                 imu_.append(imu)
+        #                 sec = sec + 0.005
+        #             else:
+        #                 if len(imu_) == 0:
+        #                     imu_.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        #                 elif len(imu_) != 0:
+        #                     imu_.append(imu_[-1])
+        #                 sec = sec + 0.005
+        #         elif self.record == False and len(emg_) != 0:
+        #             tm = np.vstack(sec_)
+        #             emg = np.vstack(emg_)
+        #             imu = np.vstack(imu_)
+        #             print(np.shape(tm), np.shape(emg), np.shape(imu))
+        #             self.listener.write_to_csv(tm, emg, imu, self.file_name)
+        #             sec = 0.005
+        #             emg_ = []
+        #             imu_ = []
+        #             sec_ = []
                         
     def update_plot(self, dt):
         # update the plot with the new data
@@ -279,12 +305,16 @@ class View(GridLayout):
         while not self.my_queue1.empty():
             if len(self.my_queue1.get()) != 0:
                 emg_.append(self.my_queue1.get())
+            else:
+                _ = self.my_queue1.get()
         emg = np.vstack(emg_)
         # print(emg.shape)
         
         while not self.my_queue2.empty():
             if len(self.my_queue2.get()) != 0:
                 imu_.append(self.my_queue2.get())
+            else:
+                _ = self.my_queue2.get()
         imu = np.vstack(imu_)
         # print(imu.shape)
 
