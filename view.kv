@@ -31,7 +31,7 @@
 			on_press: app.root.text_popup(name_txt.text); root.dismiss()
 
 <View>
-    cols: 2
+    cols: 3
     rows: 1
     padding: 10, 10, 10, 10
     spacing: 10
@@ -143,7 +143,6 @@
                 text: ''
                 multiline: True
                 disabled: True
-
 
     GridLayout:
         cols: 1
@@ -331,3 +330,399 @@
                     height: 20
                 BoxLayout:
                     id: box_ori
+
+    GridLayout:
+        cols: 1
+        rows: 2
+        size_hint: None, None
+        width: 400
+        height: 650
+
+        GridLayout:
+            cols: 1
+            rows: 3
+            size_hint: None, None
+            width: 400
+            height: 325
+            padding: 5, 5, 5, 5
+            canvas.before:
+                Color:
+                    rgba: 0, 0, 0, 1
+                Line:
+                    rectangle: self.x, self.y, self.width, self.height
+        
+            GridLayout:
+                cols: 1
+                rows: 1
+                size_hint: None, None
+                width: 300
+                height: 30
+                Label:
+                    text: "Sensor Point"
+                    font_size: 18
+                    text_size: self.width, None
+                    halign: 'left'
+                    color: 'black'
+                    bold: True
+
+            GridLayout:
+                cols: 2
+                rows: 1
+            
+                GridLayout:
+                    cols: 2
+                    rows: 4
+                    padding: 5, 5, 5, 5
+                    Label:
+                        text: "Point 1"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_1
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 2"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_2
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 3"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_3
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 4"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_4
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                GridLayout:
+                    cols: 2
+                    rows: 4
+                    padding: 5, 5, 5, 5
+                    Label:
+                        text: "Point 5"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_5
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 6"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_6
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 7"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_7
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 8"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_sensor_8
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+            GridLayout:
+                cols: 3
+                rows: 1
+                size_hint_y: None
+                height: 40
+                Button:
+                    id: btn_reset_sensor
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Reset"
+                    on_press: app.root.reset_sensor()
+                
+                Button:
+                    id: btn_zero_sensor
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Zero"
+                    on_press: app.root.zero_position()
+
+                Button:
+                    id: btn_save_sensor
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Record"
+                    on_press: app.root.save_sensor()
+        
+        GridLayout:
+            cols: 1
+            rows: 3
+            size_hint: None, None
+            width: 400
+            height: 325
+            padding: 5, 5, 5, 5
+            canvas.before:
+                Color:
+                    rgba: 0, 0, 0, 1
+                Line:
+                    rectangle: self.x, self.y, self.width, self.height
+        
+            GridLayout:
+                cols: 1
+                rows: 1
+                size_hint: None, None
+                width: 300
+                height: 30
+                Label:
+                    text: "Robot Point"
+                    font_size: 18
+                    text_size: self.width, None
+                    halign: 'left'
+                    color: 'black'
+                    bold: True
+
+            GridLayout:
+                cols: 2
+                rows: 1
+            
+                GridLayout:
+                    cols: 2
+                    rows: 4
+                    padding: 5, 5, 5, 5
+                    Label:
+                        text: "Point 1"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_1
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 2"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_2
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 3"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_3
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 4"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_4
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                GridLayout:
+                    cols: 2
+                    rows: 4
+                    padding: 5, 5, 5, 5
+                    Label:
+                        text: "Point 5"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_5
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 6"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_6
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 7"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_7
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+                    Label:
+                        text: "Point 8"
+                        font_size: 14
+                        text_size: self.width, None
+                        halign: 'left'
+                        color: 'black'
+                        bold: True
+                    TextInput:
+                        id: txt_robot_8
+                        text: ''
+                        multiline: True
+                        disabled: True
+                        size_hint_y: None
+                        height: 40
+
+            GridLayout:
+                cols: 3
+                rows: 1
+                size_hint_y: None
+                height: 40
+                Button:
+                    id: btn_reset_robot
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Reset"
+                    on_press: app.root.reset_robot()
+                    
+                Button:
+                    id: btn_release_robot
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Release"
+                    on_press: app.root.release_robot()
+                
+                Button:
+                    id: btn_save_robot
+                    size_hint_y: None
+                    width: 40
+                    height: 40
+                    font_size: 14
+                    text: "Record"
+                    on_press: app.root.save_robot()
+
+
+
+
+
+
+

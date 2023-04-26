@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import queue
@@ -21,26 +22,32 @@ import numpy as np
 import sys
 sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/')
 from myo_sensor import Listener
+from robot import Robot
 sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/model')
 from model import EMGModel
+event = None
 
 class View(GridLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        Window.size = (1300, 700)
+        Window.size = (1650, 700)
         self.file_name = ''
+        self.cube_point_robot = []
+        self.transformation_matrix = []
+
         # Sensor & model
         myo.init(sdk_path='D:\\4_KULIAH_S2\Semester 4\myo-project\myo-sdk-win-0.9.0')
         self.hub = myo.Hub()
         self.listener = Listener()
-        self.model = EMGModel(model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5')
+        # self.robot = Robot()
+        # self.model = EMGModel(model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5')
         self.my_queue1 = queue.Queue()
         self.my_queue2 = queue.Queue()
         
         # create a Matplotlib figure
-        x_lim = 220
-        y_lim = 240
+        x_lim = 200
+        y_lim = 170
 
         self.fig1 = Figure()
         self.ax1 = self.fig1.add_subplot(1, 1, 1)
@@ -126,7 +133,7 @@ class View(GridLayout):
         self.ax_ori = self.fig_ori.add_subplot(1, 1, 1)
         self.ax_ori.tick_params(axis='both', which='major', labelsize=7)
         self.ax_ori.set_xlim(0, 120)
-        self.ax_ori.set_ylim(-1.2, 1)
+        self.ax_ori.set_ylim(-1.3, 1.3)
         for line_y in [-0.5, 0, 0.5]:
             self.ax_ori.axhline(line_y, color='gray', linestyle='--', alpha=0.5)
 
@@ -220,7 +227,26 @@ class View(GridLayout):
         self.txt_hist = self.ids.txt_hist
         self.status = 'Ready!!!'
         self.txt_hist.text = self.status
-        self.ids.device_status.text, self.ids.battery_status.text, self.ids.stream_status.text = str(self.listener.device_name), str(self.listener.battery), str(self.listener.stream_status)
+
+        # check cube point        
+        self.zero_position_sensor = self.read_coor_from_file("zero_position_sensor")
+        if(len(self.zero_position_sensor) == 0):
+            self.zero_position_sensor = []
+        
+        self.cube_point_sensor = self.read_coor_from_file("cube_point_sensor")
+        if(len(self.cube_point_sensor) == 0):
+            self.cube_point_sensor = []
+        else:
+            print(self.cube_point_sensor)
+            self.ids.txt_sensor_1.text = 'Done'
+            self.ids.txt_sensor_2.text = 'Done'
+            self.ids.txt_sensor_3.text = 'Done'
+            self.ids.txt_sensor_4.text = 'Done'
+            self.ids.txt_sensor_5.text = 'Done'
+            self.ids.txt_sensor_6.text = 'Done'
+            self.ids.txt_sensor_7.text = 'Done'
+            self.ids.txt_sensor_8.text = 'Done'
+
 
         # start a thread to read sensor data and update the plot
         self.running = True
@@ -229,7 +255,7 @@ class View(GridLayout):
         self.sensor_thread.start()
         
         # update the plot with the new data in the main thread
-        Clock.schedule_interval(self.update_plot, 0.05)
+        Clock.schedule_interval(self.update_plot, 0.01)        
 
     def read_sensor(self):
         # read sensor data in a loop
@@ -268,37 +294,19 @@ class View(GridLayout):
                     emg_ = []
                     imu_ = []
                     sec_ = []
-
-        # if self.running == True:
-        #     while self.hub.run(self.listener, 5):
-        #         emg, imu = self.listener.emg_data, self.listener.stream
-        #         self.my_queue1.put(emg)
-        #         self.my_queue2.put(imu)  
-
-        #         if self.record == True:
-        #             sec_.append(sec)
-        #             emg_.append(emg)
-        #             if len(imu) != 0:
-        #                 imu_.append(imu)
-        #                 sec = sec + 0.005
-        #             else:
-        #                 if len(imu_) == 0:
-        #                     imu_.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        #                 elif len(imu_) != 0:
-        #                     imu_.append(imu_[-1])
-        #                 sec = sec + 0.005
-        #         elif self.record == False and len(emg_) != 0:
-        #             tm = np.vstack(sec_)
-        #             emg = np.vstack(emg_)
-        #             imu = np.vstack(imu_)
-        #             print(np.shape(tm), np.shape(emg), np.shape(imu))
-        #             self.listener.write_to_csv(tm, emg, imu, self.file_name)
-        #             sec = 0.005
-        #             emg_ = []
-        #             imu_ = []
-        #             sec_ = []
                         
     def update_plot(self, dt):
+        self.ids.device_status.text, self.ids.battery_status.text, self.ids.stream_status.text = str(self.listener.device_name), str(self.listener.battery), str(self.listener.stream_status)
+        
+        # calculate transformation matrix if all sensor and robot coordinate already full
+        if len(self.cube_point_sensor) == 8 and len(self.cube_point_robot) == 8 and len(self.transformation_matrix) == 0:
+            self.transformation_matrix = self.robot.transformation_matrix(self.cube_point_robot, self.cube_point_sensor)
+
+        # kalman filter
+        # if len(self.zero_position_sensor) > 0 and len(self.listener.stream) != 0:
+        #     x, y, z = self.listener.kalman_filter(self.zero_position_sensor, self.listener.stream)
+        #     print(f'X: {np.round(x[0], 10)}, Y: {np.round(y[0], 10)}, Z: {np.round(z[0], 10)}')
+
         # update the plot with the new data
         emg_ = []
         imu_ = []
@@ -307,7 +315,10 @@ class View(GridLayout):
                 emg_.append(self.my_queue1.get())
             else:
                 _ = self.my_queue1.get()
-        emg = np.vstack(emg_)
+        if (len(emg_) == 0):
+            emg = np.vstack([[0, 0, 0, 0, 0, 0, 0, 0]])
+        else:        
+            emg = np.vstack(emg_)
         # print(emg.shape)
         
         while not self.my_queue2.empty():
@@ -315,7 +326,10 @@ class View(GridLayout):
                 imu_.append(self.my_queue2.get())
             else:
                 _ = self.my_queue2.get()
-        imu = np.vstack(imu_)
+        if (len(imu_) == 0):
+            imu = np.vstack([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+        else:
+            imu = np.vstack(imu_)
         # print(imu.shape)
 
         # emg, stream = self.my_queue1.get, self.my_queue2.get
@@ -410,6 +424,152 @@ class View(GridLayout):
             self.status = self.status +"\n"+ self.file_name +" Recording Stop!!!"
             self.txt_hist.text = self.status
     
+    def release_robot(self):
+        if self.ids.btn_release_robot.text == 'Release':
+            self.ids.btn_release_robot.text = 'Lock'
+            # self.robot.detact_robot()
+            print('robot detact')
+        else:
+            self.ids.btn_release_robot.text = 'Release'
+            # self.robot.attach_robot()
+            print('robot attach')
+
+            time.sleep(1)
+            # self.robot.default_position()
+            print('robot default position')
+    
+    def reset_robot(self):
+        self.ids.txt_robot_1.text = ''
+        self.ids.txt_robot_2.text = ''
+        self.ids.txt_robot_3.text = ''
+        self.ids.txt_robot_4.text = ''
+        self.ids.txt_robot_5.text = ''
+        self.ids.txt_robot_6.text = ''
+        self.ids.txt_robot_7.text = ''
+        self.ids.txt_robot_8.text = ''
+
+        # reset coordinate
+        self.cube_point_robot = []
+        print('position robot reset')
+
+    def save_robot (self):
+        #save coordinate
+        if len(self.cube_point_robot) < 9:
+            # self.cube_point_robot.append(self.robot.get_position())
+            print('position robot save')
+
+        # change status ui
+        if self.ids.txt_robot_1.text == '':
+            self.ids.txt_robot_1.text = 'Done'
+        elif self.ids.txt_robot_2.text == '':
+            self.ids.txt_robot_2.text = 'Done'
+        elif self.ids.txt_robot_3.text == '':
+            self.ids.txt_robot_3.text = 'Done'
+        elif self.ids.txt_robot_4.text == '':
+            self.ids.txt_robot_4.text = 'Done'
+        elif self.ids.txt_robot_5.text == '':
+            self.ids.txt_robot_5.text = 'Done'
+        elif self.ids.txt_robot_6.text == '':
+            self.ids.txt_robot_6.text = 'Done'
+        elif self.ids.txt_robot_7.text == '':
+            self.ids.txt_robot_7.text = 'Done'
+        elif self.ids.txt_robot_8.text == '':
+            self.ids.txt_robot_8.text = 'Done'
+        else:
+            pass
+
+    def zero_position(self):
+        # take sensor zero position
+        imu = self.listener.stream
+        self.zero_position_sensor = imu[4:7]
+        self.save_coor_to_file(self.zero_position_sensor, "zero_position_sensor")
+
+        # make it vibrating
+        self.listener.vibrate()
+        print(f'zero position save: {self.zero_position_sensor}')
+    
+    def reset_sensor(self):
+        self.ids.txt_sensor_1.text = ''
+        self.ids.txt_sensor_2.text = ''
+        self.ids.txt_sensor_3.text = ''
+        self.ids.txt_sensor_4.text = ''
+        self.ids.txt_sensor_5.text = ''
+        self.ids.txt_sensor_6.text = ''
+        self.ids.txt_sensor_7.text = ''
+        self.ids.txt_sensor_8.text = ''
+
+        # reset coordinate
+        self.cube_point_sensor = []
+        print('position sensor reset')
+
+    def save_sensor (self):
+        # save coordinate
+        imu = self.listener.stream
+        if len(self.cube_point_sensor) < 8:
+            # kalman = self.listener.kalman_filter(self.zero_position_sensor, imu)
+            self.cube_point_sensor.append(imu)              # orientation x acceleration x gyroscope (4, 3, 3)
+            print(f'position: {imu}, shape: {np.shape(self.cube_point_sensor)}')
+        
+        if len(self.cube_point_sensor) == 8:
+            self.save_coor_to_file(self.cube_point_sensor, "cube_point_sensor")
+
+        # change status ui
+        if self.ids.txt_sensor_1.text == '':
+            self.ids.txt_sensor_1.text = 'Done'
+        elif self.ids.txt_sensor_2.text == '':
+            self.ids.txt_sensor_2.text = 'Done'
+        elif self.ids.txt_sensor_3.text == '':
+            self.ids.txt_sensor_3.text = 'Done'
+        elif self.ids.txt_sensor_4.text == '':
+            self.ids.txt_sensor_4.text = 'Done'
+        elif self.ids.txt_sensor_5.text == '':
+            self.ids.txt_sensor_5.text = 'Done'
+        elif self.ids.txt_sensor_6.text == '':
+            self.ids.txt_sensor_6.text = 'Done'
+        elif self.ids.txt_sensor_7.text == '':
+            self.ids.txt_sensor_7.text = 'Done'
+        elif self.ids.txt_sensor_8.text == '':
+            self.ids.txt_sensor_8.text = 'Done'
+        else:
+            pass
+    
+    def save_coor_to_file(self, data, name):
+        """
+        Save value into file
+
+        Args:
+            data (list) : value to save
+            name (str) : name of file
+
+        Returns:
+            -
+        """
+        path_file = "D:/4_KULIAH_S2/Semester 4/myo-project/file/"
+        isExist = os.path.exists(path_file)
+        if not isExist:
+            # Create a new directory because it does not exist 
+            os.makedirs(path_file)
+            # print("Folder Created")
+        
+        np.savetxt(path_file + "/" + name + ".txt", data)
+
+    def read_coor_from_file(self, name, *args):
+        """
+        Read value from file
+
+        Args:
+            name (str) : name of file
+
+        Returns:
+            -
+        """
+        path_file = "D:/4_KULIAH_S2/Semester 4/myo-project/file/" + name + ".txt"
+        isExist = os.path.exists(path_file)
+        if not isExist:
+            return []
+        
+        return np.loadtxt(path_file)
+
 class MainApp(MDApp):
     def build(self):
         self.theme_cls.theme_style = "Light"
