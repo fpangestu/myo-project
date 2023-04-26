@@ -34,20 +34,20 @@ class Listener(myo.DeviceListener):
         # print("Hello, '{}'! Double tap to exit.".format(event.device_name))
         self.device = event.device
         event.device.vibrate(myo.VibrationType.short)
-        event.device.request_battery_level()
+        self.battery = event.device.request_battery_level()
         event.device.stream_emg(True)
         self.device_name = event.device_name
         self.stream_status = True
-        print(self.device_name, self.stream_status)
+        # print(self.device_name, self.stream_status)
 
-    def on_battery_level(self, event):
-        self.battery = event.battery_level
-        print("Your battery level is:", self.battery)
+    # def on_battery_level(self, event):
+    #     self.battery = event.battery_level
+    #     print("Your battery level is:", self.battery)
 
-    def on_pose(self, event):
-        # if event.pose == myo.Pose.double_tap:
-        #     return False
-        pass
+    # def on_pose(self, event):
+    #     # if event.pose == myo.Pose.double_tap:
+    #     #     return False
+    #     pass
     
     def on_unpaired(self, event):
         return False  # Stop the hub
@@ -205,61 +205,61 @@ class Listener(myo.DeviceListener):
 
 
 if __name__ == '__main__':
-    # pass
-    myo.init(sdk_path='D:\\4_KULIAH_S2\Semester 4\myo-project\myo-sdk-win-0.9.0')
-    hub = myo.Hub()
-    listener = Listener()
-    sec = 0.005
-    emg_ = []
-    imu_ = []
-    sec_ = []
+    pass
+    # myo.init(sdk_path='D:\\4_KULIAH_S2\Semester 4\myo-project\myo-sdk-win-0.9.0')
+    # hub = myo.Hub()
+    # listener = Listener()
+    # sec = 0.005
+    # emg_ = []
+    # imu_ = []
+    # sec_ = []
 
-    try:
-        with hub.run_in_background(listener.on_event):
-            time.sleep(0.005)
-        # while hub.run(listener, 1):
-            # print(listener.emg_data)
-            if keyboard.is_pressed('s'):
-                if listener.is_recording == False:
-                    listener.is_recording = True
-                else:
-                    listener.is_recording = False
+    # try:
+    #     with hub.run_in_background(listener.on_event):
+    #         time.sleep(0.005)
+    #     # while hub.run(listener, 1):
+    #         # print(listener.emg_data)
+    #         if keyboard.is_pressed('s'):
+    #             if listener.is_recording == False:
+    #                 listener.is_recording = True
+    #             else:
+    #                 listener.is_recording = False
             
             
-            while listener.is_recording == True:
-                print(listener.emg_data)
-                # print(f'EMG: {listener.time_data, listener.emg_data}')
-                # print(f'IMU: {listener.stream}')
+    #         while listener.is_recording == True:
+    #             print(listener.emg_data)
+    #             # print(f'EMG: {listener.time_data, listener.emg_data}')
+    #             # print(f'IMU: {listener.stream}')
                 
-                sec_.append(sec)
-                emg_.append(listener.emg_data)
-                if len(listener.stream) != 0:
-                    imu_.append(listener.stream)
-                    sec = sec + 0.005
-                else:
-                    if len(imu_) == 0:
-                        imu_.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-                    elif len(imu_) != 0:
-                        imu_.append(imu_[-1])
-                    sec = sec + 0.005
+    #             sec_.append(sec)
+    #             emg_.append(listener.emg_data)
+    #             if len(listener.stream) != 0:
+    #                 imu_.append(listener.stream)
+    #                 sec = sec + 0.005
+    #             else:
+    #                 if len(imu_) == 0:
+    #                     imu_.append([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    #                 elif len(imu_) != 0:
+    #                     imu_.append(imu_[-1])
+    #                 sec = sec + 0.005
 
-                if keyboard.is_pressed('s'):
-                    if listener.is_recording == False:
-                        listener.is_recording = True
-                    else:
-                        listener.is_recording = False
+    #             if keyboard.is_pressed('s'):
+    #                 if listener.is_recording == False:
+    #                     listener.is_recording = True
+    #                 else:
+    #                     listener.is_recording = False
       
-            if keyboard.is_pressed('a'):
-                tm = np.array(sec_)
-                emg = np.vstack(emg_)
-                imu = np.vstack(imu_)
-                listener.write_to_csv(tm, emg, imu, 'test2.csv')
-                listener.reset_stream()
-                sec = 0.005
-                emg_ = []
-                imu_ = []
-                sec_ = []
-    except KeyboardInterrupt:
-        pass
+    #         if keyboard.is_pressed('a'):
+    #             tm = np.array(sec_)
+    #             emg = np.vstack(emg_)
+    #             imu = np.vstack(imu_)
+    #             listener.write_to_csv(tm, emg, imu, 'test2.csv')
+    #             listener.reset_stream()
+    #             sec = 0.005
+    #             emg_ = []
+    #             imu_ = []
+    #             sec_ = []
+    # except KeyboardInterrupt:
+    #     pass
     
-    print('Bye, bye!')
+    # print('Bye, bye!')

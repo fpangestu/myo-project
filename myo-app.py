@@ -23,8 +23,8 @@ import sys
 sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/')
 from myo_sensor import Listener
 from robot import Robot
-sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/model')
-from model import EMGModel
+# sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/model')
+# from model import EMGModel
 event = None
 
 class View(GridLayout):
@@ -296,11 +296,12 @@ class View(GridLayout):
                     sec_ = []
                         
     def update_plot(self, dt):
-        self.ids.device_status.text, self.ids.battery_status.text, self.ids.stream_status.text = str(self.listener.device_name), str(self.listener.battery), str(self.listener.stream_status)
+        if self.ids.device_status.text == '-':
+            self.ids.device_status.text, self.ids.battery_status.text, self.ids.stream_status.text = str(self.listener.device_name), str(self.listener.battery), str(self.listener.stream_status)
         
         # calculate transformation matrix if all sensor and robot coordinate already full
-        if len(self.cube_point_sensor) == 8 and len(self.cube_point_robot) == 8 and len(self.transformation_matrix) == 0:
-            self.transformation_matrix = self.robot.transformation_matrix(self.cube_point_robot, self.cube_point_sensor)
+        # if len(self.cube_point_sensor) == 8 and len(self.cube_point_robot) == 8 and len(self.transformation_matrix) == 0:
+        #     self.transformation_matrix = self.robot.transformation_matrix(self.cube_point_robot, self.cube_point_sensor)
 
         # kalman filter
         # if len(self.zero_position_sensor) > 0 and len(self.listener.stream) != 0:
