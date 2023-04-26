@@ -2,7 +2,7 @@ from uarm.wrapper import SwiftAPI
 import time
 import numpy as np
 from msvcrt import getch
-
+import keyboard
 
 class Robot:
     def __init__(self):
@@ -35,23 +35,49 @@ class Robot:
 
     def pump(self, status=False):
         self.swift.set_pump(on=status)
+    
+    def limit_switch(self):
+        return self.swift.get_limit_switch()
 
     def transformation_matrix(self, cube_point_robot, cube_point_sensor):
         print('calculate transformation matrix')
-
-    
     
 if __name__ == '__main__':
     robot = Robot()
     status, device_info, hardware_version = robot.status()
     print(f'Status: {status}, Device info: {device_info}, Hardware version: {hardware_version}')
-    time.sleep(2)
+    time.sleep(1)
     robot.default_position()
-    print(f'Posotion: {robot.get_position()}')
-    # time.sleep(5)
-    # robot.detact_robot()
-    # time.sleep(3)
-    # # robot.attach_robot()
-    # print(f'Position: {robot.get_position()}')
-    # robot.test_robot()
+    x, y, z = robot.get_position()
+    speed = 1000
+    print(f'X: {x}, Y: {y}, Z: {z}')
+    
+    # move robot using arrow
+    while True:
+        if keyboard.is_pressed('a'):
+            y = y + 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('s'):
+            x = x + 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('w'):
+            x = x - 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('d'):
+            y = y - 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('e'):
+            z = z - 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('r'):
+            z = z + 1
+            robot.move_robot(x, y, z, speed=speed)
+        elif keyboard.is_pressed('z'):
+            robot.pump(status=True)
+        elif keyboard.is_pressed('x'):
+            robot.pump(status=False)
+        
+        print(f'X: {x}, Y: {y}, Z: {z}')
+
+
 
