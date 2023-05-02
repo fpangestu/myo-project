@@ -112,10 +112,11 @@ class EMGModel:
 
         # Filter Signal Using High-pass Filter
         signal_filter = np.zeros((200, 8))
-        sampling_freq  = 200             # Nyquist theorem (the sampling rate should be at least twice the highest frequency component in the signal)
-        filter_order = 4
+        sampling_freq  = 254             # Nyquist theorem (the sampling rate should be at least twice the highest frequency component in the signal)
+        filter_order = 5
+        cutoff_freq = 10/20/30
         for ch in range(8):
-            cutoff_freq  = (sampling_freq*0.5)*0.2
+            # cutoff_freq  = (sampling_freq*0.5)*0.2
             coefficients = cutoff_freq/(sampling_freq*0.5)              # filter coefficients
             b, a = sc.signal.butter(filter_order, coefficients, btype='highpass')
             filter = filtfilt(b, a, data[:, ch])  
@@ -123,9 +124,9 @@ class EMGModel:
 
         # Extract Feature
         feature = np.zeros((1, 16, 112))
-        fft_size = 32
-        step_size = fft_size - (0.6 * fft_size) # window size - (20% of window size)
-        thresh = 4
+        fft_size = 60
+        step_size = fft_size - (0.8 * fft_size) # window size - (20% of window size)
+        thresh = 3
 
         for i in range(1):
             wav_spectrogram_1 = self.pretty_spectrogram(signal_filter[:, 0], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
