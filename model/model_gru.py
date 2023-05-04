@@ -2,14 +2,16 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
-from keras.models import load_model, Sequential
+from tensorflow.keras.models import load_model, Sequential
+from tensorflow.keras.optimizers import Adam
 import scipy as sc
 from scipy.signal import butter, lfilter, filtfilt, sosfiltfilt
 
 
 class EMGModel:
     def __init__(self, model_path):
-        self.model = load_model(model_path)
+        self.model = load_model(model_path, compile=False)
+        self.model.compile(optimizer=Adam(learning_rate=0.001),loss='categorical_crossentropy',metrics=['accuracy'])
         # self.model = Sequential(self.model.layers)
     
     def overlap(self, X, window_size, window_step):
@@ -114,7 +116,7 @@ class EMGModel:
         signal_filter = np.zeros((200, 8))
         sampling_freq  = 254             # Nyquist theorem (the sampling rate should be at least twice the highest frequency component in the signal)
         filter_order = 5
-        cutoff_freq = 10/20/30
+        cutoff_freq = 20
         for ch in range(8):
             # cutoff_freq  = (sampling_freq*0.5)*0.2
             coefficients = cutoff_freq/(sampling_freq*0.5)              # filter coefficients
@@ -123,7 +125,7 @@ class EMGModel:
             signal_filter[:, ch] = filter
 
         # Extract Feature
-        feature = np.zeros((1, 16, 112))
+        feature = np.zeros((1, 15, 240))
         fft_size = 60
         step_size = fft_size - (0.8 * fft_size) # window size - (20% of window size)
         thresh = 3
@@ -138,7 +140,7 @@ class EMGModel:
             wav_spectrogram_7 = self.pretty_spectrogram(signal_filter[:, 6], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
             wav_spectrogram_8 = self.pretty_spectrogram(signal_filter[:, 7], fft_size=fft_size, step_size=step_size, log=True, thresh=thresh)
             
-            feature[i, :, :] = np.hstack((np.transpose(wav_spectrogram_1), np.transpose(wav_spectrogram_2), np.transpose(wav_spectrogram_3), np.transpose(wav_spectrogram_4), np.transpose(wav_spectrogram_5), np.transpose(wav_spectrogram_6), np.transpose(wav_spectrogram_7), np.transpose(wav_spectrogram_8)))
+            feature[i, :, :] = np.hstack((wav_spectrogram_1, wav_spectrogram_2, wav_spectrogram_3, wav_spectrogram_4, wav_spectrogram_5, wav_spectrogram_6, wav_spectrogram_7, wav_spectrogram_8))
 
         # print(f'File name: {gesture} No: {test_data} Shape: {data.shape} Filter: {signal_filter.shape} Feature: {feature.shape}')
         # Normalize EMG dataset
@@ -153,12 +155,12 @@ class EMGModel:
         return output
     
     def main(self, signal):
-        model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5'
-        self.model = load_model(model_path)
+        # model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model_wo_null.h5'
+        # self.model = load_model(model_path)
         prep_data = self.prep(signal)
         output = self.predict(prep_data)
 
-        return output
+        return np.argmax(output)
 
 if __name__ == '__main__':
     model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5'

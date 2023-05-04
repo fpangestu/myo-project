@@ -7,6 +7,9 @@ import keyboard
 class Robot:
     def __init__(self):
         self.swift = 0 
+        self.x = 0
+        self.y = 0
+        self.z = 0
 
     def status(self):
         try:
@@ -19,10 +22,11 @@ class Robot:
             return "Not Connected", "---", "---"
 
     def get_position(self):
+        self.x, self.y, self.z = self.swift.get_position()
         return self.swift.get_position()
 
     def default_position(self):
-        self.swift.reset(speed=800)
+        self.swift.reset(speed = 1000)
     
     def detact_robot(self):
         self.swift.set_servo_detach()
@@ -30,7 +34,7 @@ class Robot:
     def attach_robot(self):
         self.swift.set_servo_attach()
 
-    def move_robot(self, x, y, z, speed=30, wait=True):
+    def move_robot(self, x, y, z, speed=1000, wait=True):
         self.swift.set_position(x=x, y=y, z=z, speed=speed, wait=wait) 
 
     def pump(self, status=False):
@@ -42,6 +46,19 @@ class Robot:
     def transformation_matrix(self, cube_point_robot, cube_point_sensor):
         print('calculate transformation matrix')
     
+    def main(self, command):
+        if(command == 0):
+            self.pump(status=True)
+        elif(command == 1):
+            self.pump(status=False)
+        elif(command == 2):
+            self.x = self.x + 1 
+            self.move_robot(x, y, z, speed=1000)
+        elif(command == 3):
+            self.x = self.x - 1
+            self.move_robot(x, y, z, speed=1000)
+    
+
 if __name__ == '__main__':
     robot = Robot()
     status, device_info, hardware_version = robot.status()

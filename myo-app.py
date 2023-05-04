@@ -20,12 +20,13 @@ import matplotlib.pyplot as plt
 import random
 import numpy as np
 import sys
+import math
+from scipy.spatial.transform import Rotation as R 
 sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/')
 from myo_sensor import Listener
 from robot import Robot
-# sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/model')
-# from model import EMGModel
-event = None
+sys.path.insert(0, 'D:/4_KULIAH_S2/Semester 4/myo-project/model')
+from model_gru import EMGModel
 
 class View(GridLayout):
     def __init__(self, **kwargs):
@@ -40,10 +41,23 @@ class View(GridLayout):
         myo.init(sdk_path='D:\\4_KULIAH_S2\Semester 4\myo-project\myo-sdk-win-0.9.0')
         self.hub = myo.Hub()
         self.listener = Listener()
-        # self.robot = Robot()
-        # self.model = EMGModel(model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model.h5')
+        self.robot = Robot()
+        self.model = EMGModel(model_path = 'D:\\4_KULIAH_S2\Semester 4\myo-project\model\gru_model_wo_null.h5')
         self.my_queue1 = queue.Queue()
         self.my_queue2 = queue.Queue()
+        self.class_arr = []
+        self.class_status = False
+
+        # robot
+        self.robot_command = -1
+        self.robot_is_on = False
+        self.robot_is_zero = False
+        self.r = 0
+
+        # Angle
+        self.theta_gyro = 0
+        self.phi_gyro = 0
+        self.time_before = int(time.time() * 1000)
         
         # create a Matplotlib figure
         x_lim = 200
@@ -251,8 +265,12 @@ class View(GridLayout):
         # start a thread to read sensor data and update the plot
         self.running = True
         self.record = False
-        self.sensor_thread = threading.Thread(target=self.read_sensor)
-        self.sensor_thread.start()
+        self.sensor_thread_1 = threading.Thread(target=self.read_sensor, daemon=True)
+        self.sensor_thread_2 = threading.Thread(target=self.class_model, daemon=True)
+        # self.sensor_thread_3 = threading.Thread(target=self.robot_move, daemon=True)
+        self.sensor_thread_1.start()
+        self.sensor_thread_2.start()
+        # self.sensor_thread_3.start()
         
         # update the plot with the new data in the main thread
         Clock.schedule_interval(self.update_plot, 0.01)        
@@ -265,6 +283,10 @@ class View(GridLayout):
         emg_ = []
         imu_ = []
         sec_ = []
+        is_active = []
+        st_active = []
+        is_triger = False
+        is_rest = 0
 
         with self.hub.run_in_background(self.listener.on_event):
             while True:
@@ -294,11 +316,78 @@ class View(GridLayout):
                     emg_ = []
                     imu_ = []
                     sec_ = []
-                        
+                else:
+                    # Classification
+                    # print(np.array(emg).shape)
+                    if(len(emg) != 0):
+                        if is_triger == False and self.class_status == False:
+                            for i in range(np.array(emg).shape[0]):
+                                # Check if the absolute value of the data for the current channel is greater than the threshold
+                                if np.any(np.abs(np.array(emg)[i]) > 25):
+                                    is_active.append(i+1)
+                    
+                            if len(is_active) > 4:
+                                st_active = is_active
+                                is_triger = True
+                                self.class_arr.append(emg)
+                        elif is_triger == False and self.class_status == True:
+                            if self.robot_command == 2 or self.robot_command == 3:
+                                if emg[st_active[0]] < 5:
+                                    is_rest = is_rest + 1
+                                if is_rest > 5:
+                                    self.class_arr = []
+                                    self.class_status = False
+                                self.robot_command = self.robot_command
+                        else:
+                            self.class_arr.append(emg)                            
+                            if len(self.class_arr) > 200:
+                                is_triger = False
+                                self.class_status = True
+
+                        is_active = []
+                    
+                    # Calculate Rotation
+                    if(len(imu) != 0):
+                        self.r = R.from_quat([imu[0], imu[1], imu[2], imu[3]]).as_euler('xyz', degrees=True)
+                        # print(r)
+
+
+    def class_model(self):
+        # Control robot
+        while True:
+            if self.class_status == True and len(self.class_arr) > 200:
+                output = self.model.main(self.class_arr)
+                print(f'Class: {output}')
+                self.robot_command = output
+                self.class_arr = []
+                if output != 2 or output != 3:
+                    self.class_status = False
+            time.sleep(0.1)
+
+    def robot_move(self):
+        x, y, z = 0, 0, 0
+        while True:
+            if self.robot_is_on == False:
+                is_connect, device, version = self.robot.status()
+                self.robot.default_position()
+                x, y, z = self.robot.get_position()
+                self.robot_is_zero = True
+                self.robot_is_on = True
+                print(is_connect, device, version)
+                print(x, y, z)
+                
+            if self.robot_command != -1:
+                self.robot.main(self.robot_command)
+
+            self.robot_command = -1
+            time.sleep(0.5)
+
+
+    
     def update_plot(self, dt):
         if self.ids.device_status.text == '-':
             self.ids.device_status.text, self.ids.battery_status.text, self.ids.stream_status.text = str(self.listener.device_name), str(self.listener.battery), str(self.listener.stream_status)
-        
+
         # calculate transformation matrix if all sensor and robot coordinate already full
         # if len(self.cube_point_sensor) == 8 and len(self.cube_point_robot) == 8 and len(self.transformation_matrix) == 0:
         #     self.transformation_matrix = self.robot.transformation_matrix(self.cube_point_robot, self.cube_point_sensor)
@@ -364,24 +453,24 @@ class View(GridLayout):
         self.y_ori_2 = np.append(self.y_ori_2[len(imu[:, 1]):], imu[:, 1])
         self.y_ori_3 = np.append(self.y_ori_3[len(imu[:, 2]):], imu[:, 2])
         self.y_ori_4 = np.append(self.y_ori_4[len(imu[:, 3]):], imu[:, 3])
-        self.line_ori_1.set_ydata(self.y_ori_1)
-        self.line_ori_2.set_ydata(self.y_ori_2)
-        self.line_ori_3.set_ydata(self.y_ori_3)
-        self.line_ori_4.set_ydata(self.y_ori_4)
+        self.line_ori_1.set_ydata(self.y_ori_1[-120:])
+        self.line_ori_2.set_ydata(self.y_ori_2[-120:])
+        self.line_ori_3.set_ydata(self.y_ori_3[-120:])
+        self.line_ori_4.set_ydata(self.y_ori_4[-120:])
 
         self.y_acc_1 = np.append(self.y_acc_1[len(imu[:, 4]):], imu[:, 4])
         self.y_acc_2 = np.append(self.y_acc_2[len(imu[:, 5]):], imu[:, 5])
         self.y_acc_3 = np.append(self.y_acc_3[len(imu[:, 6]):], imu[:, 6])
-        self.line_acc_1.set_ydata(self.y_acc_1)
-        self.line_acc_2.set_ydata(self.y_acc_2)
-        self.line_acc_3.set_ydata(self.y_acc_3)
+        self.line_acc_1.set_ydata(self.y_acc_1[-120:])
+        self.line_acc_2.set_ydata(self.y_acc_2[-120:])
+        self.line_acc_3.set_ydata(self.y_acc_3[-120:])
 
         self.y_gyro_1 = np.append(self.y_gyro_1[len(imu[:, 7]):], imu[:, 7])
         self.y_gyro_2 = np.append(self.y_gyro_2[len(imu[:, 8]):], imu[:, 8])
         self.y_gyro_3 = np.append(self.y_gyro_3[len(imu[:, 9]):], imu[:, 9])
-        self.line_gyro_1.set_ydata(self.y_gyro_1)
-        self.line_gyro_2.set_ydata(self.y_gyro_2)
-        self.line_gyro_3.set_ydata(self.y_gyro_3)
+        self.line_gyro_1.set_ydata(self.y_gyro_1[-120:])
+        self.line_gyro_2.set_ydata(self.y_gyro_2[-120:])
+        self.line_gyro_3.set_ydata(self.y_gyro_3[-120:])
 
         # # redraw the canvas
         self.fig1.canvas.draw()
@@ -398,10 +487,28 @@ class View(GridLayout):
 
         #empty queue
 
+        
+        # Calculate angle
+        # orientation, acceleration, gyroscope = self.listener.stream[:4], self.listener.stream[4:7], self.listener.stream[7:]
+        # print(f'acceleration: {acceleration}, gyroscope: {gyroscope}')
+
+        # # calculate tilt
+        # # theta_acc = -math.atan2(acceleration[0]/9.8, acceleration[2]/9.8)/2/3.141592654*360    # tilt in X-axis (devide by 9.8 to normalize to vector 1G)
+        # # phi_acc = -math.atan2(acceleration[1]/9.8, acceleration[2]/9.8)/2/3.141592654*360
+        # # print(f'theta: {theta_acc}, phi: {phi_acc}')
+
+
+        # delta_time = (int(time.time() * 1000) - self.time_before)/1000
+        # self.time_before = int(time.time() * 1000)
+        # self.theta_gyro = self.theta_gyro + gyroscope[1] * delta_time
+        # self.phi_gyro = self.phi_gyro - gyroscope[0] * delta_time
+        # print(f'theta_gyro: {round(self.theta_gyro, 3)}, phi_gyro: {round(self.phi_gyro, 3)}')
+
     def on_stop(self):
         # stop the thread when the app is closed
         self.running = False
-        self.sensor_thread.join()
+        self.sensor_thread_1.join()
+        self.sensor_thread_2.join()
         
     def text_popup(self, name_file): 
         if len(name_file) != 0:
@@ -481,8 +588,7 @@ class View(GridLayout):
 
     def zero_position(self):
         # take sensor zero position
-        imu = self.listener.stream
-        self.zero_position_sensor = imu[4:7]
+        self.zero_position_sensor = self.r
         self.save_coor_to_file(self.zero_position_sensor, "zero_position_sensor")
 
         # make it vibrating

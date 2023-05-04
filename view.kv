@@ -528,6 +528,7 @@
                     font_size: 14
                     text: "Record"
                     on_press: app.root.save_sensor()
+                    disabled = True
         
         GridLayout:
             cols: 1
@@ -701,6 +702,7 @@
                     font_size: 14
                     text: "Reset"
                     on_press: app.root.reset_robot()
+                    disabled = True
                     
                 Button:
                     id: btn_release_robot
@@ -710,6 +712,7 @@
                     font_size: 14
                     text: "Release"
                     on_press: app.root.release_robot()
+                    disabled = True
                 
                 Button:
                     id: btn_save_robot
@@ -719,6 +722,7 @@
                     font_size: 14
                     text: "Record"
                     on_press: app.root.save_robot()
+                    disabled = True
 
 
 
