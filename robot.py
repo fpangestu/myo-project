@@ -26,7 +26,7 @@ class Robot:
         return self.swift.get_position()
 
     def default_position(self):
-        self.swift.reset(speed = 1000)
+        self.swift.reset(speed = 1300)
     
     def detact_robot(self):
         self.swift.set_servo_detach()
@@ -46,17 +46,30 @@ class Robot:
     def transformation_matrix(self, cube_point_robot, cube_point_sensor):
         print('calculate transformation matrix')
     
-    def main(self, command):
+    def main(self, command, value=0):
         if(command == 0):
             self.pump(status=True)
         elif(command == 1):
             self.pump(status=False)
         elif(command == 2):
-            self.x = self.x + 1 
-            self.move_robot(x, y, z, speed=1000)
+            self.y = self.y + 1 
+            self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
         elif(command == 3):
+            self.y = self.y - 1
+            self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
+        elif(command == 4):
+            self.z = self.z - 1 
+            if (self.limit_switch != True):
+                self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
+        elif(command == 5):
+            self.z = self.z + 1
+            self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
+        elif(command == 6):
+            self.x = self.x + 1 
+            self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
+        elif(command == 7):
             self.x = self.x - 1
-            self.move_robot(x, y, z, speed=1000)
+            self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
     
 
 if __name__ == '__main__':

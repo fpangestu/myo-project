@@ -47,12 +47,13 @@ class View(GridLayout):
         self.my_queue2 = queue.Queue()
         self.class_arr = []
         self.class_status = False
+        self.zero_position_sensor = []
 
         # robot
         self.robot_command = -1
         self.robot_is_on = False
         self.robot_is_zero = False
-        self.r = 0
+        self.r = []
 
         # Angle
         self.theta_gyro = 0
@@ -243,23 +244,23 @@ class View(GridLayout):
         self.txt_hist.text = self.status
 
         # check cube point        
-        self.zero_position_sensor = self.read_coor_from_file("zero_position_sensor")
-        if(len(self.zero_position_sensor) == 0):
-            self.zero_position_sensor = []
+        # self.zero_position_sensor = self.read_coor_from_file("zero_position_sensor")
+        # if(len(self.zero_position_sensor) == 0):
+        #     self.zero_position_sensor = []
         
-        self.cube_point_sensor = self.read_coor_from_file("cube_point_sensor")
-        if(len(self.cube_point_sensor) == 0):
-            self.cube_point_sensor = []
-        else:
-            print(self.cube_point_sensor)
-            self.ids.txt_sensor_1.text = 'Done'
-            self.ids.txt_sensor_2.text = 'Done'
-            self.ids.txt_sensor_3.text = 'Done'
-            self.ids.txt_sensor_4.text = 'Done'
-            self.ids.txt_sensor_5.text = 'Done'
-            self.ids.txt_sensor_6.text = 'Done'
-            self.ids.txt_sensor_7.text = 'Done'
-            self.ids.txt_sensor_8.text = 'Done'
+        # self.cube_point_sensor = self.read_coor_from_file("cube_point_sensor")
+        # if(len(self.cube_point_sensor) == 0):
+        #     self.cube_point_sensor = []
+        # else:
+        #     print(self.cube_point_sensor)
+        #     self.ids.txt_sensor_1.text = 'Done'
+        #     self.ids.txt_sensor_2.text = 'Done'
+        #     self.ids.txt_sensor_3.text = 'Done'
+        #     self.ids.txt_sensor_4.text = 'Done'
+        #     self.ids.txt_sensor_5.text = 'Done'
+        #     self.ids.txt_sensor_6.text = 'Done'
+        #     self.ids.txt_sensor_7.text = 'Done'
+        #     self.ids.txt_sensor_8.text = 'Done'
 
 
         # start a thread to read sensor data and update the plot
@@ -267,10 +268,10 @@ class View(GridLayout):
         self.record = False
         self.sensor_thread_1 = threading.Thread(target=self.read_sensor, daemon=True)
         self.sensor_thread_2 = threading.Thread(target=self.class_model, daemon=True)
-        # self.sensor_thread_3 = threading.Thread(target=self.robot_move, daemon=True)
+        self.sensor_thread_3 = threading.Thread(target=self.robot_move, daemon=True)
         self.sensor_thread_1.start()
         self.sensor_thread_2.start()
-        # self.sensor_thread_3.start()
+        self.sensor_thread_3.start()
         
         # update the plot with the new data in the main thread
         Clock.schedule_interval(self.update_plot, 0.01)        
@@ -327,17 +328,8 @@ class View(GridLayout):
                                     is_active.append(i+1)
                     
                             if len(is_active) > 4:
-                                st_active = is_active
                                 is_triger = True
                                 self.class_arr.append(emg)
-                        elif is_triger == False and self.class_status == True:
-                            if self.robot_command == 2 or self.robot_command == 3:
-                                if emg[st_active[0]] < 5:
-                                    is_rest = is_rest + 1
-                                if is_rest > 5:
-                                    self.class_arr = []
-                                    self.class_status = False
-                                self.robot_command = self.robot_command
                         else:
                             self.class_arr.append(emg)                            
                             if len(self.class_arr) > 200:
@@ -349,7 +341,7 @@ class View(GridLayout):
                     # Calculate Rotation
                     if(len(imu) != 0):
                         self.r = R.from_quat([imu[0], imu[1], imu[2], imu[3]]).as_euler('xyz', degrees=True)
-                        # print(r)
+                        # print(self.r)
 
 
     def class_model(self):
@@ -360,27 +352,89 @@ class View(GridLayout):
                 print(f'Class: {output}')
                 self.robot_command = output
                 self.class_arr = []
-                if output != 2 or output != 3:
+                if self.robot_command != -1:
                     self.class_status = False
             time.sleep(0.1)
 
     def robot_move(self):
-        x, y, z = 0, 0, 0
+        r_x_0, r_y_0, r_z_0 = 0, 0, 0
+        s_z, s_y, s_x = 0, 0, 0
+        is_ready = False
         while True:
+            # print(self.r)
+            # print(self.zero_position_sensor)
+            if len(self.r) != 0:
+                s_z, s_y, s_x = self.r
+            # if len(self.zero_position_sensor) != 0 and s_z_0 == 0:
+            #     s_z_0, s_y_0, s_x_0 = self.zero_position_sensor
+            #     is_ready = True
+
             if self.robot_is_on == False:
                 is_connect, device, version = self.robot.status()
                 self.robot.default_position()
-                x, y, z = self.robot.get_position()
+                r_x_0, r_y_0, r_z_0 = self.robot.get_position()
                 self.robot_is_zero = True
                 self.robot_is_on = True
-                print(is_connect, device, version)
-                print(x, y, z)
+                print(f'Robot Status: {is_connect, device, version}')
+                print(f'Robot Coordinate: {r_x_0, r_y_0, r_z_0}')
                 
+            # Check Sensor Rotation
+            # Y-axis (Robot)
+            if len(self.zero_position_sensor) != 0:
+                if s_x < self.zero_position_sensor[2] - 15 and s_x > self.zero_position_sensor[2] + 10:
+                    self.robot_command = -1
+                elif s_x < self.zero_position_sensor[2] - 15 and  s_x > self.zero_position_sensor[2] - 25:
+                    self.robot_command = 3
+                    value = 1
+                elif s_x < self.zero_position_sensor[2] - 25:
+                    self.robot_command = 3
+                    value = 2
+                elif s_x > self.zero_position_sensor[2] + 10 and s_x < self.zero_position_sensor[2] + 15:
+                    self.robot_command = 2
+                    value = 1
+                elif s_x > self.zero_position_sensor[2] + 15:
+                    self.robot_command = 2
+                    value = 2
+
+                # Z-axis (Robot)
+                if s_y < self.zero_position_sensor[1] - 10 and s_y > self.zero_position_sensor[1] + 10:
+                    self.robot_command = -1
+                elif s_y < self.zero_position_sensor[1] - 10 and  s_y > self.zero_position_sensor[1] - 15:
+                    self.robot_command = 4
+                    value = 1
+                elif s_y < self.zero_position_sensor[1] - 15:
+                    self.robot_command = 4
+                    value = 2
+                elif s_y > self.zero_position_sensor[1] + 10 and s_y < self.zero_position_sensor[1] + 15:
+                    self.robot_command = 5
+                    value = 1
+                elif s_y > self.zero_position_sensor[1] + 15:
+                    self.robot_command = 5
+                    value = 2
+                
+                # X-Axis (Robot)
+                if s_z < self.zero_position_sensor[0] - 15 and s_z > self.zero_position_sensor[0] + 7:
+                    self.robot_command = -1
+                elif s_z < self.zero_position_sensor[0] - 15 and  s_z > self.zero_position_sensor[0] - 20:
+                    self.robot_command = 6
+                    value = 1
+                elif s_z < self.zero_position_sensor[0] - 20:
+                    self.robot_command = 6
+                    value = 2
+                elif s_z > self.zero_position_sensor[0] + 7 and s_z < self.zero_position_sensor[0] + 12:
+                    self.robot_command = 7
+                    value = 1
+                elif s_z > self.zero_position_sensor[0] + 12:
+                    self.robot_command = 7
+                    value = 2
+
             if self.robot_command != -1:
-                self.robot.main(self.robot_command)
+                # print(self.robot_command, value)
+                self.robot.main(self.robot_command, value)
 
             self.robot_command = -1
-            time.sleep(0.5)
+            value = 0
+            time.sleep(0.01)
 
 
     
@@ -589,7 +643,7 @@ class View(GridLayout):
     def zero_position(self):
         # take sensor zero position
         self.zero_position_sensor = self.r
-        self.save_coor_to_file(self.zero_position_sensor, "zero_position_sensor")
+        # self.save_coor_to_file(self.zero_position_sensor, "zero_position_sensor")
 
         # make it vibrating
         self.listener.vibrate()
