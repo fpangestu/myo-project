@@ -47,6 +47,7 @@ class Robot:
         print('calculate transformation matrix')
     
     def main(self, command, value=0):
+        # print(command)
         if(command == 0):
             self.pump(status=True)
         elif(command == 1):
@@ -58,8 +59,10 @@ class Robot:
             self.y = self.y - 1
             self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
         elif(command == 4):
-            self.z = self.z - 1 
-            if (self.limit_switch != True):
+            status = self.limit_switch()
+            # print(status)
+            if (status == False):
+                self.z = self.z - 1 
                 self.move_robot(self.x, self.y, self.z, speed=1000+(value*300))
         elif(command == 5):
             self.z = self.z + 1
@@ -97,8 +100,12 @@ if __name__ == '__main__':
             y = y - 1
             robot.move_robot(x, y, z, speed=speed)
         elif keyboard.is_pressed('e'):
-            z = z - 1
-            robot.move_robot(x, y, z, speed=speed)
+            status = robot.limit_switch()
+            print(status)
+            # print(status)
+            if (status == False):
+                z = z - 1
+                robot.move_robot(x, y, z, speed=speed)
         elif keyboard.is_pressed('r'):
             z = z + 1
             robot.move_robot(x, y, z, speed=speed)

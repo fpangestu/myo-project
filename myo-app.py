@@ -54,6 +54,7 @@ class View(GridLayout):
         self.robot_is_on = False
         self.robot_is_zero = False
         self.r = []
+        self.robot_status_position = []
 
         # Angle
         self.theta_gyro = 0
@@ -61,7 +62,7 @@ class View(GridLayout):
         self.time_before = int(time.time() * 1000)
         
         # create a Matplotlib figure
-        x_lim = 200
+        x_lim = 400
         y_lim = 170
 
         self.fig1 = Figure()
@@ -291,7 +292,7 @@ class View(GridLayout):
 
         with self.hub.run_in_background(self.listener.on_event):
             while True:
-                time.sleep(0.003)
+                time.sleep(0.00001)
                 emg, imu = self.listener.emg_data, self.listener.stream
                 self.my_queue1.put(emg)
                 self.my_queue2.put(imu)
@@ -324,7 +325,7 @@ class View(GridLayout):
                         if is_triger == False and self.class_status == False:
                             for i in range(np.array(emg).shape[0]):
                                 # Check if the absolute value of the data for the current channel is greater than the threshold
-                                if np.any(np.abs(np.array(emg)[i]) > 25):
+                                if np.any(np.abs(np.array(emg)[i]) > 20):
                                     is_active.append(i+1)
                     
                             if len(is_active) > 4:
@@ -350,6 +351,8 @@ class View(GridLayout):
             if self.class_status == True and len(self.class_arr) > 200:
                 output = self.model.main(self.class_arr)
                 print(f'Class: {output}')
+                # self.status = self.status +"\nClass: "+ output
+                # self.txt_hist.text = self.status
                 self.robot_command = output
                 self.class_arr = []
                 if self.robot_command != -1:
@@ -375,45 +378,49 @@ class View(GridLayout):
                 r_x_0, r_y_0, r_z_0 = self.robot.get_position()
                 self.robot_is_zero = True
                 self.robot_is_on = True
+                # self.status = self.status +"\nRobot Status: " + is_connect + " " + device + " " + version
+                # self.txt_hist.text = self.status
+                # self.status = self.status +"\nRobot Coordinate: X: "+r_x_0 + ", Y: " +  r_y_0 + ", Z: " +  r_z_0
+                # self.txt_hist.text = self.status
                 print(f'Robot Status: {is_connect, device, version}')
                 print(f'Robot Coordinate: {r_x_0, r_y_0, r_z_0}')
                 
             # Check Sensor Rotation
             # Y-axis (Robot)
             if len(self.zero_position_sensor) != 0:
-                if s_x < self.zero_position_sensor[2] - 15 and s_x > self.zero_position_sensor[2] + 10:
+                if s_x < self.zero_position_sensor[2] - 15 and s_x > self.zero_position_sensor[2] + 15:
                     self.robot_command = -1
-                elif s_x < self.zero_position_sensor[2] - 15 and  s_x > self.zero_position_sensor[2] - 25:
+                elif s_x < self.zero_position_sensor[2] - 15 and  s_x > self.zero_position_sensor[2] - 20:
                     self.robot_command = 3
                     value = 1
                 elif s_x < self.zero_position_sensor[2] - 25:
                     self.robot_command = 3
                     value = 2
-                elif s_x > self.zero_position_sensor[2] + 10 and s_x < self.zero_position_sensor[2] + 15:
+                elif s_x > self.zero_position_sensor[2] + 15 and s_x < self.zero_position_sensor[2] + 20:
                     self.robot_command = 2
                     value = 1
-                elif s_x > self.zero_position_sensor[2] + 15:
+                elif s_x > self.zero_position_sensor[2] + 25:
                     self.robot_command = 2
                     value = 2
 
                 # Z-axis (Robot)
-                if s_y < self.zero_position_sensor[1] - 10 and s_y > self.zero_position_sensor[1] + 10:
+                if s_y < self.zero_position_sensor[1] - 15 and s_y > self.zero_position_sensor[1] + 15:
                     self.robot_command = -1
-                elif s_y < self.zero_position_sensor[1] - 10 and  s_y > self.zero_position_sensor[1] - 15:
+                elif s_y < self.zero_position_sensor[1] - 15 and  s_y > self.zero_position_sensor[1] - 20:
                     self.robot_command = 4
                     value = 1
-                elif s_y < self.zero_position_sensor[1] - 15:
+                elif s_y < self.zero_position_sensor[1] - 20:
                     self.robot_command = 4
                     value = 2
-                elif s_y > self.zero_position_sensor[1] + 10 and s_y < self.zero_position_sensor[1] + 15:
+                elif s_y > self.zero_position_sensor[1] + 15 and s_y < self.zero_position_sensor[1] + 20:
                     self.robot_command = 5
                     value = 1
-                elif s_y > self.zero_position_sensor[1] + 15:
+                elif s_y > self.zero_position_sensor[1] + 20:
                     self.robot_command = 5
                     value = 2
                 
                 # X-Axis (Robot)
-                if s_z < self.zero_position_sensor[0] - 15 and s_z > self.zero_position_sensor[0] + 7:
+                if s_z < self.zero_position_sensor[0] - 15 and s_z > self.zero_position_sensor[0] + 10:
                     self.robot_command = -1
                 elif s_z < self.zero_position_sensor[0] - 15 and  s_z > self.zero_position_sensor[0] - 20:
                     self.robot_command = 6
@@ -421,10 +428,10 @@ class View(GridLayout):
                 elif s_z < self.zero_position_sensor[0] - 20:
                     self.robot_command = 6
                     value = 2
-                elif s_z > self.zero_position_sensor[0] + 7 and s_z < self.zero_position_sensor[0] + 12:
+                elif s_z > self.zero_position_sensor[0] + 10 and s_z < self.zero_position_sensor[0] + 15:
                     self.robot_command = 7
                     value = 1
-                elif s_z > self.zero_position_sensor[0] + 12:
+                elif s_z > self.zero_position_sensor[0] + 15:
                     self.robot_command = 7
                     value = 2
 
@@ -647,7 +654,10 @@ class View(GridLayout):
 
         # make it vibrating
         self.listener.vibrate()
-        print(f'zero position save: {self.zero_position_sensor}')
+        print(f'Zero position save: {self.zero_position_sensor}')
+        # self.status = self.status +"\nZero position save: " + self.zero_position_sensor
+        # self.txt_hist.text = self.status
+        
     
     def reset_sensor(self):
         self.ids.txt_sensor_1.text = ''
